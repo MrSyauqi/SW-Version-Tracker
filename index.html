@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SW Version Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f4f3ef;--sur:#fff;--bdr:#dddbd3;--txt:#1a1917;
+  --mut:#6b6860;--fnt:#a09d97;
+  --acc:#1a5faa;--acl:#e8f0fb;
+  --suc:#1a7a4a;--scb:#e8f5ee;
+  --dng:#a32020;--dgb:#fff0f0;
+  --wrn:#7a4a1a;--wnb:#fdf2e5;
+  --hov:#f9f8f5;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:13px;min-height:100vh;}
+
+/* ── Header ── */
+header{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 20px;display:flex;align-items:center;gap:10px;height:48px;position:sticky;top:0;z-index:20;}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;display:flex;align-items:center;gap:7px;}
+.ldot{width:8px;height:8px;background:var(--acc);border-radius:50%;}
+.hsep{flex:1;}
+.srvst{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);font-family:'IBM Plex Mono',monospace;}
+.sdot{width:7px;height:7px;border-radius:50%;background:#ccc;transition:background .3s;}
+.sdot.on{background:#2ea055;}.sdot.off{background:#e04a3a;}
+
+/* ── Category bar ── */
+.catbar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 20px;display:flex;align-items:center;}
+.cattab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;user-select:none;transition:color .15s;}
+.cattab:hover{color:var(--txt);}
+.cattab.active{color:var(--acc);border-bottom-color:var(--acc);}
+.catmgr{padding:10px 14px;font-size:12px;color:var(--acc);cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:6px;}
+.catmgr:hover{text-decoration:underline;}
+
+/* ── Main ── */
+.main{padding:14px 20px;max-width:1600px;margin:0 auto;}
+
+/* ── Controls (search + add only) ── */
+.ctrls{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.swrap{position:relative;flex:1;}
+.swrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--fnt);pointer-events:none;}
+input[type=text]{width:100%;padding:7px 10px 7px 30px;border:1px solid var(--bdr);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--sur);color:var(--txt);outline:none;}
+input[type=text]:focus{border-color:var(--acc);}
+select{padding:6px 9px;border:1px solid var(--bdr);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--sur);color:var(--txt);outline:none;cursor:pointer;}
+.btn{padding:6px 13px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border:none;transition:opacity .15s;}
+.btn-p{background:var(--acc);color:#fff;}.btn-p:hover{opacity:.88;}
+.btn-g{background:var(--sur);border:1px solid var(--bdr);color:var(--txt);}.btn-g:hover{background:var(--bg);}
+.btn-d{background:var(--dgb);border:1px solid #f0b8b8;color:var(--dng);}.btn-d:hover{background:#fce0e0;}
+
+/* ── Status filter pills ── */
+.sfs{display:flex;gap:6px;margin-bottom:10px;}
+.sf{padding:4px 13px;border-radius:99px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--bdr);background:var(--sur);color:var(--mut);user-select:none;transition:all .15s;}
+.sf.active{border-color:transparent;}
+.sf.all.active{background:#1a1917;color:#f4f3ef;}
+.sf.fix.active{background:#1a7a4a;color:#fff;}
+.sf.workable.active{background:#1a5faa;color:#fff;}
+.sf.bug.active{background:#a32020;color:#fff;}
+
+.stats{font-size:12px;color:var(--mut);margin-bottom:10px;}
+.stats strong{color:var(--txt);}
+
+/* ── Table ── */
+.twrap{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead{background:#f7f6f2;border-bottom:1px solid var(--bdr);}
+th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);white-space:nowrap;border-right:1px solid var(--bdr);}
+th:last-child{border-right:none;}
+td{padding:10px 12px;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);vertical-align:top;}
+td:last-child{border-right:none;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--hov);}
+
+/* Version grouping */
+.vgf td{border-top:2px solid #bbb;}
+.vgm td,.vgl td{border-top:1px dashed #e8e6df;}
+.vcell{vertical-align:middle;text-align:center;}
+.vbadge{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;background:#1a1917;color:#f4f3ef;padding:3px 8px;border-radius:4px;display:inline-block;}
+.vdate{font-size:10px;color:var(--fnt);font-family:'IBM Plex Mono',monospace;margin-top:3px;}
+
+/* Status badge */
+.scell{vertical-align:middle;text-align:center;}
+.sbadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;}
+.sbadge.fix{background:#e8f5ee;color:#1a7a4a;border:1px solid #a3d9b8;}
+.sbadge.workable{background:#e8f0fb;color:#1a5faa;border:1px solid #a8c5f0;}
+.sbadge.bug{background:#fff0f0;color:#a32020;border:1px solid #f0b8b8;}
+.sds{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.fix .sds{background:#1a7a4a;}.workable .sds{background:#1a5faa;}.bug .sds{background:#a32020;}
+
+/* Table cell content */
+.exel{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mut);line-height:1.7;}
+.ctag{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--wnb);color:var(--wrn);border:1px solid #e8c99a;padding:2px 7px;border-radius:4px;display:inline-block;}
+.nc{color:var(--fnt);font-style:italic;font-size:12px;}
+.cname{font-weight:500;}
+.ftag{font-size:11px;color:var(--mut);margin-top:1px;}
+.itext{line-height:1.5;}
+
+/* Notes expandable */
+.ntog{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--acc);cursor:pointer;border:none;background:none;padding:2px 0;margin-top:5px;font-family:'IBM Plex Sans',sans-serif;}
+.ntog:hover{text-decoration:underline;}
+.narr{display:inline-block;transition:transform .2s;font-style:normal;}
+.ntog.open .narr{transform:rotate(90deg);}
+.nbody{display:none;margin-top:6px;padding:8px 10px;background:#f9f8f5;border-left:2px solid var(--bdr);border-radius:0 4px 4px 0;font-size:12px;color:var(--mut);white-space:pre-wrap;line-height:1.6;word-break:break-word;}
+.nbody.open{display:block;}
+.iimgs{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.iimg{width:72px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--bdr);cursor:zoom-in;}
+.iimg:hover{opacity:.82;}
+
+/* Folder pill buttons */
+.opbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--acc);border-radius:99px;background:var(--acl);cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;color:var(--acc);white-space:nowrap;margin:2px;pointer-events:auto;}
+.opbtn:hover{background:var(--acc);color:#fff;}
+.opbtn.ok{background:var(--scb);border-color:#7ecfa5;color:var(--suc);}
+/* Prevent SVG inside button from capturing events */
+.opbtn svg,.ibtn svg{pointer-events:none;}
+
+/* Row action buttons */
+.ract{display:flex;gap:5px;margin-top:8px;}
+.ibtn{padding:4px 9px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid var(--bdr);background:var(--sur);color:var(--mut);display:inline-flex;align-items:center;gap:4px;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;}
+.ibtn:hover{background:var(--bg);}
+.ibtn.del:hover{background:var(--dgb);color:var(--dng);border-color:#f0b8b8;}
+
+.erow td{text-align:center;padding:40px;color:var(--fnt);font-style:italic;}
+
+/* ── Modal ── */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:50;align-items:center;justify-content:center;}
+.mbg.open{display:flex;}
+.mbox{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:22px;width:620px;max-width:96vw;max-height:92vh;overflow-y:auto;}
+.mbox h2{font-size:15px;font-weight:600;margin-bottom:3px;}
+.msub{font-size:12px;color:var(--mut);margin-bottom:16px;}
+.fr{margin-bottom:12px;}
+.fr label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:3px;}
+.fr input,.fr textarea,.fr select{width:100%;padding:7px 9px;border:1px solid var(--bdr);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--txt);background:var(--sur);outline:none;resize:vertical;}
+.fr input:focus,.fr textarea:focus,.fr select:focus{border-color:var(--acc);}
+.fhint{font-size:11px;color:var(--fnt);margin-top:2px;}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+/* Path rows in modal */
+.prow{display:flex;gap:6px;align-items:flex-start;margin-bottom:7px;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:8px;}
+.pfields{flex:1;display:flex;flex-direction:column;gap:5px;}
+.plbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--fnt);}
+.prow input{width:100%;padding:5px 8px;border:1px solid var(--bdr);border-radius:5px;font-size:12px;color:var(--txt);background:var(--sur);outline:none;font-family:'IBM Plex Mono',monospace;}
+.prow input.nm{font-family:'IBM Plex Sans',sans-serif;}
+.prow input:focus{border-color:var(--acc);}
+.pdel{padding:3px 8px;border-radius:4px;border:1px solid #f0b8b8;background:var(--dgb);color:var(--dng);cursor:pointer;font-size:11px;flex-shrink:0;margin-top:16px;font-family:'IBM Plex Sans',sans-serif;}
+
+/* Image upload */
+.upa{border:2px dashed var(--bdr);border-radius:8px;padding:14px;text-align:center;cursor:pointer;background:var(--bg);margin-top:4px;}
+.upa:hover{border-color:var(--acc);background:var(--acl);}
+.upa p{font-size:12px;color:var(--mut);}
+.upl{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.utw{position:relative;}
+.uth{width:72px;height:56px;object-fit:cover;border-radius:5px;border:1px solid var(--bdr);display:block;}
+.udl{position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:#a32020;color:#fff;border:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:bold;}
+.ust{font-size:11px;color:var(--mut);margin-top:6px;font-family:'IBM Plex Mono',monospace;}
+.ust.ok{color:var(--suc);}.ust.err{color:var(--dng);}
+
+/* Category manager */
+.cli{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--bdr);border-radius:6px;margin-bottom:6px;background:var(--bg);}
+.cadd{display:flex;gap:8px;margin-top:10px;}
+.cadd input{flex:1;padding:7px 9px;border:1px solid var(--bdr);border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--txt);background:var(--sur);outline:none;}
+.cadd input:focus{border-color:var(--acc);}
+
+/* Confirm dialog */
+.cfbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center;}
+.cfbg.open{display:flex;}
+.cfbox{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:20px 22px;width:320px;}
+.cfbox h3{font-size:14px;font-weight:600;margin-bottom:6px;}
+.cfbox p{font-size:12px;color:var(--mut);margin-bottom:14px;}
+.cfact{display:flex;justify-content:flex-end;gap:7px;}
+
+/* Lightbox */
+.lbx{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;align-items:center;justify-content:center;cursor:zoom-out;}
+.lbx.open{display:flex;}
+.lbx img{max-width:90vw;max-height:90vh;border-radius:6px;}
+
+/* Toast */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1917;color:#f4f3ef;padding:9px 16px;border-radius:8px;font-size:12px;font-family:'IBM Plex Mono',monospace;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:500px;text-align:center;z-index:200;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.err{background:#a32020;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="ldot"></div>SW Version Tracker</div>
+  <div class="hsep"></div>
+  <div class="srvst">
+    <div class="sdot" id="sdot"></div>
+    <span id="stxt">checking…</span>
+  </div>
+</header>
+
+<div class="catbar" id="catbar">
+  <div class="catmgr" onclick="openCatMgr()">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="pointer-events:none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Manage categories
+  </div>
+</div>
+
+<div class="main">
+  <!-- Controls: search + Add Entry only (no customer filter) -->
+  <div class="ctrls">
+    <div class="swrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search" placeholder="Search version, case, issue…" oninput="loadEntries()"/>
+    </div>
+    <button class="btn btn-p" onclick="openModal()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="pointer-events:none"><path d="M12 5v14M5 12h14"/></svg>
+      Add Entry
+    </button>
+  </div>
+
+  <div class="sfs">
+    <div class="sf all active" onclick="setSF('')">All</div>
+    <div class="sf fix" onclick="setSF('fix')">✓ Fix</div>
+    <div class="sf workable" onclick="setSF('workable')">● Workable</div>
+    <div class="sf bug" onclick="setSF('bug')">✕ Bug</div>
+  </div>
+
+  <div class="stats">Total: <strong id="stTotal">—</strong> &nbsp;·&nbsp; Shown: <strong id="stShown">—</strong></div>
+
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th style="width:90px">SW Version</th>
+        <th style="width:110px">SW Status</th>
+        <th style="width:190px">Version Detail</th>
+        <th style="width:135px">Case / History</th>
+        <th style="width:130px">Customer</th>
+        <th>Issue Description</th>
+        <th style="width:220px">Software Folder Location</th>
+      </tr></thead>
+      <tbody id="tbody"><tr class="erow"><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Entry Modal -->
+<div class="mbg" id="entryModal">
+  <div class="mbox">
+    <h2 id="mTitle">Add Entry</h2>
+    <div class="msub">Saved permanently to tracker.db</div>
+    <input type="hidden" id="fId"/>
+    <div class="fr">
+      <label>SW Status</label>
+      <select id="fStatus">
+        <option value="workable">● Workable</option>
+        <option value="fix">✓ Fix</option>
+        <option value="bug">✕ Bug</option>
+      </select>
+    </div>
+    <div class="fr"><label>Category</label><select id="fCat"></select></div>
+    <div class="fr"><label>SW Version *</label><input id="fVer" placeholder="e.g. 2.9.10"/></div>
+    <div class="fr">
+      <label>Version Detail</label>
+      <textarea id="fDetail" rows="2" placeholder="One filename per line"></textarea>
+      <div class="fhint">One filename per line</div>
+    </div>
+    <div class="fr"><label>Case / History</label><input id="fCase" placeholder="CAS-22528-N2D9"/></div>
+    <div class="fr"><label>Customer</label><input id="fCustI" placeholder="Bangkok (Factory 7)"/></div>
+    <div class="fr"><label>Issue Description</label><textarea id="fIssue" rows="2"></textarea></div>
+    <div class="fr">
+      <label>Notes</label>
+      <textarea id="fNotes" rows="3" placeholder="Extra observations, steps to reproduce…"></textarea>
+      <div class="fhint">Shows as expandable section in the table</div>
+    </div>
+    <div class="fr">
+      <label>Attach Images</label>
+      <div class="upa" onclick="document.getElementById('fFile').click()">
+        <p>📎 Click to attach images (PNG, JPG, GIF, WEBP)</p>
+        <p style="font-size:11px;color:var(--fnt);margin-top:2px">Stored in uploads/ folder next to server.py</p>
+      </div>
+      <input type="file" id="fFile" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)"/>
+      <div id="upSt" class="ust"></div>
+      <div class="upl" id="upPrev"></div>
+    </div>
+    <div class="fr">
+      <label>File Locations</label>
+      <div id="pathList"></div>
+      <button class="btn btn-g" style="margin-top:6px;font-size:12px" onclick="addPath()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="pointer-events:none"><path d="M12 5v14M5 12h14"/></svg>
+        Add location
+      </button>
+      <div class="fhint">Label = short name shown as button. Path = full Windows path to file.</div>
+    </div>
+    <div class="mact">
+      <button class="btn btn-g" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" id="saveBtn" onclick="saveEntry()">Save to Database</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Manager Modal -->
+<div class="mbg" id="catModal">
+  <div class="mbox" style="width:400px">
+    <h2>Manage Categories</h2>
+    <div class="msub">Tabs update instantly. Removing a category does not delete its entries.</div>
+    <div id="catList"></div>
+    <div class="cadd">
+      <input id="newCat" placeholder="New category name…" onkeydown="if(event.key==='Enter')addCat()"/>
+      <button class="btn btn-p" onclick="addCat()">Add</button>
+    </div>
+    <div class="mact"><button class="btn btn-g" onclick="closeCatMgr()">Done</button></div>
+  </div>
+</div>
+
+<!-- Confirm Delete -->
+<div class="cfbg" id="cfBg">
+  <div class="cfbox">
+    <h3>Delete entry?</h3>
+    <p>This will permanently remove the entry from the database.</p>
+    <div class="cfact">
+      <button class="btn btn-g" onclick="closeCf()">Cancel</button>
+      <button class="btn btn-d" onclick="doDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lbx" id="lbx" onclick="this.classList.remove('open')">
+  <img id="lbxImg" src="" alt=""/>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:5000';
+let entries=[], cats=[], activeCat='', sf='';
+let delId=null, editMode=false, pImgs=[], pendingPaths=[];
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function apiPost(url, body={}) {
+  const r = await fetch(API+url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+async function apiGet(url) {
+  const r = await fetch(API+url);
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+// ── Categories ────────────────────────────────────────────────────────────────
+async function loadCats() {
+  try {
+    const d = await apiGet('/api/categories');
+    cats = d.categories || [];
+    renderCatBar();
+    renderCatSel();
+  } catch(e) { console.error('loadCats',e); }
+}
+
+function renderCatBar() {
+  const bar = document.getElementById('catbar');
+  const mgr = bar.querySelector('.catmgr');
+  bar.innerHTML = '';
+  cats.forEach(c => {
+    const t = document.createElement('div');
+    t.className = 'cattab' + (activeCat===c.name ? ' active' : '');
+    t.textContent = c.name;
+    t.onclick = () => { activeCat = c.name; renderCatBar(); loadEntries(); };
+    bar.appendChild(t);
+  });
+  bar.appendChild(mgr);
+}
+
+function renderCatSel() {
+  const s = document.getElementById('fCat'), v = s.value;
+  s.innerHTML = cats.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  if (cats.find(c=>c.name===v)) s.value = v;
+}
+
+function renderCatList() {
+  const el = document.getElementById('catList');
+  if (!cats.length) { el.innerHTML='<p style="font-size:12px;color:var(--fnt);padding:4px 0">No categories yet.</p>'; return; }
+  el.innerHTML = cats.map(c=>`
+    <div class="cli">
+      <span style="font-size:13px;font-weight:500">${esc(c.name)}</span>
+      <button class="btn btn-d" style="font-size:11px;padding:3px 9px" onclick="delCat(${c.id})">Remove</button>
+    </div>`).join('');
+}
+
+async function addCat() {
+  const inp = document.getElementById('newCat');
+  const name = inp.value.trim();
+  if (!name) return;
+  try {
+    const d = await apiPost('/api/categories', {name});
+    cats = d.categories;
+    inp.value = '';
+    renderCatBar(); renderCatSel(); renderCatList();
+    toast('Category added');
+  } catch(e) { toast('❌ '+e.message, true); }
+}
+
+async function delCat(id) {
+  try {
+    const d = await apiPost(`/api/categories/${id}/delete`);
+    cats = d.categories;
+    renderCatBar(); renderCatSel(); renderCatList();
+    loadEntries();
+    toast('Category removed');
+  } catch(e) { toast('❌ '+e.message, true); }
+}
+
+function openCatMgr() { renderCatList(); document.getElementById('catModal').classList.add('open'); }
+function closeCatMgr() { document.getElementById('catModal').classList.remove('open'); }
+
+// ── Entries ───────────────────────────────────────────────────────────────────
+async function loadEntries() {
+  const q = document.getElementById('search').value;
+  const params = [];
+  if (q) params.push('q='+encodeURIComponent(q));
+  if (sf) params.push('status='+encodeURIComponent(sf));
+  if (activeCat) params.push('category='+encodeURIComponent(activeCat));
+  try {
+    const d = await apiGet('/api/entries'+(params.length?'?'+params.join('&'):''));
+    entries = d.entries || [];
+    document.getElementById('stShown').textContent = entries.length;
+    document.getElementById('stTotal').textContent = d.total || entries.length;
+    render();
+  } catch {
+    document.getElementById('tbody').innerHTML = '<tr class="erow"><td colspan="7">⚠️ Cannot connect — is server.py running?</td></tr>';
+  }
+}
+
+function setSF(s) {
+  sf = s;
+  document.querySelectorAll('.sf').forEach(e=>e.classList.remove('active'));
+  const key = {'':`all`,'fix':'fix','workable':'workable','bug':'bug'}[s] || 'all';
+  document.querySelector('.sf.'+key).classList.add('active');
+  loadEntries();
+}
+
+function render() {
+  const tb = document.getElementById('tbody');
+  if (!entries.length) { tb.innerHTML='<tr class="erow"><td colspan="7">No entries found.</td></tr>'; return; }
+
+  // Group consecutive same-version rows for version cell merging
+  const groups = [];
+  entries.forEach(r => {
+    const last = groups[groups.length-1];
+    if (last && last.ver === r.ver) last.rows.push(r);
+    else groups.push({ver:r.ver, rows:[r]});
+  });
+
+  let html = '';
+  groups.forEach(g => {
+    g.rows.forEach((r, ri) => {
+      const first = ri===0, last = ri===g.rows.length-1;
+      const rc = first?'vgf':last?'vgl':'vgm';
+      const details = r.details ? r.details.split('\n').filter(Boolean) : [];
+      const date = r.created_at ? r.created_at.split(' ')[0] : '';
+      const status = r.status || 'workable';
+      const slabel = {fix:'✓ Fix',workable:'● Workable',bug:'✕ Bug'}[status] || status;
+      const rid = r.id; // integer from SQLite
+
+      // Paths — use data-path attribute so no lookup needed on click
+      let pa = [];
+      try { pa = JSON.parse(r.paths||'[]'); } catch {}
+      if (!pa.length && r.path) pa = [{label:fname(r.path), path:r.path}];
+      const pathsHtml = pa.map(p => {
+        const lbl = esc(p.label || fname(p.path));
+        const pth = esc(p.path);
+        return `<button class="opbtn" data-path="${pth}" onclick="openPath(this)">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          ${lbl}</button>`;
+      }).join('');
+
+      // Notes + images (expandable)
+      let imgs = [];
+      try { imgs = JSON.parse(r.images||'[]'); } catch {}
+      const hasN = !!r.notes, hasI = imgs.length>0;
+      const imgHtml = hasI ? `<div class="iimgs">${imgs.map(u=>`<img class="iimg" src="${API}${u}" onclick="openLbx('${API}${esc(u)}')" title="Click to zoom"/>`).join('')}</div>` : '';
+      const notesHtml = (hasN||hasI) ? `
+        <button class="ntog" onclick="toggleN(this)">
+          <i class="narr">▶</i> Notes${hasI?` · ${imgs.length} image${imgs.length>1?'s':''}`:''}
+        </button>
+        <div class="nbody">
+          ${hasN?`<div style="margin-bottom:${hasI?'10px':'0'}">${esc(r.notes)}</div>`:''}
+          ${imgHtml}
+        </div>` : '';
+
+      // SW Version cell — merged with rowspan
+      const verCell = first ? `<td class="vcell" rowspan="${g.rows.length}">
+          <span class="vbadge">${esc(r.ver)}</span>
+          ${date?`<div class="vdate">${date}</div>`:''}
+        </td>` : '';
+
+      // SW Status cell — one per row, NOT merged
+      const stCell = `<td class="scell">
+        <span class="sbadge ${status}"><div class="sds"></div>${slabel}</span>
+      </td>`;
+
+      html += `<tr class="${rc}">
+        ${verCell}
+        ${stCell}
+        <td>${details.map(d=>`<div class="exel">${esc(d)}</div>`).join('')||'<span class="nc">—</span>'}</td>
+        <td>${r.case_id?`<span class="ctag">${esc(r.case_id)}</span>`:'<span class="nc">—</span>'}</td>
+        <td>
+          <div class="cname">${r.customer?esc(r.customer.split('(')[0].trim()):'—'}</div>
+          ${r.customer&&r.customer.includes('(')?`<div class="ftag">(${esc(r.customer.split('(')[1]||'')}</div>`:''}
+        </td>
+        <td>
+          <div class="itext">${esc(r.issue||'—')}</div>
+          ${notesHtml}
+        </td>
+        <td>
+          <div style="display:flex;flex-wrap:wrap;">${pathsHtml}</div>
+          <div class="ract">
+            <button class="ibtn" data-id="${rid}" onclick="openEdit(this)">
+              <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+            <button class="ibtn del" data-id="${rid}" onclick="askDel(this)">
+              <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+  tb.innerHTML = html;
+}
+
+function toggleN(btn) { btn.classList.toggle('open'); btn.nextElementSibling.classList.toggle('open'); }
+
+// ── Open folder ───────────────────────────────────────────────────────────────
+async function openPath(btn) {
+  // Use closest() in case click landed on child SVG
+  const b = btn.closest('.opbtn');
+  const path = b.dataset.path;
+  b.style.opacity = '.5';
+  const orig = b.innerHTML;
+  b.innerHTML = '⏳ Opening…';
+  try {
+    const d = await apiGet('/api/open?path='+encodeURIComponent(path));
+    b.style.opacity = '1';
+    if (d.success) {
+      b.classList.add('ok');
+      b.innerHTML = '✓ Opened';
+      toast('📂 '+path);
+      setTimeout(()=>{ b.classList.remove('ok'); b.innerHTML=orig; }, 3000);
+    } else {
+      b.innerHTML = orig;
+      toast('❌ '+(d.message||'Failed'), true);
+    }
+  } catch(e) {
+    b.style.opacity='1'; b.innerHTML=orig;
+    toast('❌ '+e.message, true);
+  }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+function askDel(btn) {
+  // Use closest() to handle clicks on SVG children inside the button
+  const b = btn.closest('.ibtn.del');
+  const id = parseInt(b.dataset.id, 10);
+  console.log('[askDel] id=', id, 'dataset=', b.dataset.id);
+  if (!id) { toast('❌ Could not read entry ID', true); return; }
+  delId = id;
+  document.getElementById('cfBg').classList.add('open');
+}
+
+function closeCf() { document.getElementById('cfBg').classList.remove('open'); delId=null; }
+
+async function doDelete() {
+  console.log('[doDelete] delId=', delId);
+  if (!delId) { toast('❌ No entry selected', true); return; }
+  const id = delId;
+  closeCf();
+  try {
+    const d = await apiPost(`/api/entries/${id}/delete`);
+    console.log('[doDelete] response=', d);
+    if (d.success) { toast('🗑️ Deleted'); loadEntries(); }
+    else toast('❌ '+(d.error||'Delete failed'), true);
+  } catch(e) {
+    console.error('[doDelete] error', e);
+    toast('❌ '+e.message, true);
+  }
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function renderPaths() {
+  document.getElementById('pathList').innerHTML = pendingPaths.map((p,i) => `
+    <div class="prow">
+      <div class="pfields">
+        <div class="plbl">Display Name</div>
+        <input class="nm" placeholder="e.g. v2.9.0 AOI Installer" value="${esc(p.label)}" oninput="pendingPaths[${i}].label=this.value"/>
+        <div class="plbl" style="margin-top:3px">Full Windows Path</div>
+        <input placeholder="D:\\path\\to\\setup.exe" value="${esc(p.path)}" oninput="pendingPaths[${i}].path=this.value"/>
+      </div>
+      ${pendingPaths.length>1?`<button class="pdel" onclick="removePath(${i})">✕</button>`:''}
+    </div>`).join('');
+}
+
+function addPath() { pendingPaths.push({label:'',path:''}); renderPaths(); }
+function removePath(i) { pendingPaths.splice(i,1); renderPaths(); }
+
+function openModal() {
+  editMode=false; pImgs=[]; pendingPaths=[{label:'',path:''}];
+  document.getElementById('mTitle').textContent = 'Add Entry';
+  document.getElementById('fId').value = '';
+  ['fVer','fDetail','fCase','fCustI','fIssue','fNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fStatus').value = 'workable';
+  renderCatSel();
+  document.getElementById('upPrev').innerHTML = '';
+  document.getElementById('upSt').textContent = '';
+  renderPaths();
+  document.getElementById('entryModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('entryModal').classList.remove('open'); }
+
+function openEdit(btn) {
+  const b = btn.closest('.ibtn');
+  const id = parseInt(b.dataset.id, 10);
+  const r = entries.find(e=>e.id===id);
+  if (!r) { toast('❌ Entry not found', true); return; }
+  editMode=true; pImgs=[];
+  document.getElementById('mTitle').textContent = 'Edit Entry';
+  document.getElementById('fId').value = r.id;
+  document.getElementById('fVer').value = r.ver;
+  document.getElementById('fDetail').value = r.details||'';
+  document.getElementById('fCase').value = r.case_id||'';
+  document.getElementById('fCustI').value = r.customer||'';
+  document.getElementById('fIssue').value = r.issue||'';
+  document.getElementById('fNotes').value = r.notes||'';
+  document.getElementById('fStatus').value = r.status||'workable';
+  document.getElementById('upSt').textContent = '';
+  renderCatSel();
+  document.getElementById('fCat').value = r.category||'AOI';
+  try { pendingPaths = JSON.parse(r.paths||'[]'); } catch { pendingPaths=[]; }
+  if (!pendingPaths.length) pendingPaths = [{label:fname(r.path||''), path:r.path||''}];
+  renderPaths();
+  try { pImgs = JSON.parse(r.images||'[]').map(u=>({url:u, isNew:false, dataUrl:null, filename:''})); } catch { pImgs=[]; }
+  renderImgPrev();
+  document.getElementById('entryModal').classList.add('open');
+}
+
+async function saveEntry() {
+  const ver = document.getElementById('fVer').value.trim();
+  const vp = pendingPaths.filter(p=>p.path.trim());
+  if (!ver || !vp.length) { toast('Version and at least one path are required', true); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.textContent='Saving…'; btn.disabled=true;
+
+  // Upload new images first
+  for (const img of pImgs) {
+    if (img.isNew && !img.url) {
+      document.getElementById('upSt').textContent='Uploading image…';
+      document.getElementById('upSt').className='ust';
+      try {
+        const parts = img.dataUrl.split(',');
+        const b64 = parts[1]||parts[0];
+        const d = await apiPost('/api/upload', {filename:img.filename, data:b64});
+        if (d.success) {
+          img.url = d.url;
+          document.getElementById('upSt').textContent=`✓ Uploaded (${Math.round(d.size/1024)} KB)`;
+          document.getElementById('upSt').className='ust ok';
+        } else throw new Error(d.error);
+      } catch(e) {
+        document.getElementById('upSt').textContent='Upload failed: '+e.message;
+        document.getElementById('upSt').className='ust err';
+        btn.textContent='Save to Database'; btn.disabled=false;
+        return;
+      }
+    }
+  }
+
+  const body = {
+    ver,
+    path: vp[0].path,
+    paths: JSON.stringify(vp),
+    details: document.getElementById('fDetail').value.trim(),
+    case_id: document.getElementById('fCase').value.trim(),
+    customer: document.getElementById('fCustI').value.trim(),
+    issue: document.getElementById('fIssue').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+    status: document.getElementById('fStatus').value,
+    category: document.getElementById('fCat').value,
+    images: JSON.stringify(pImgs.filter(i=>i.url).map(i=>i.url))
+  };
+
+  const id = document.getElementById('fId').value;
+  const url = (editMode && id) ? `/api/entries/${id}/save` : '/api/entries';
+  try {
+    const d = await apiPost(url, body);
+    if (d.success || d.entry) {
+      closeModal();
+      toast(editMode ? '✅ Entry updated' : '✅ Entry saved');
+      loadEntries();
+    } else throw new Error(d.error||'Unknown error');
+  } catch(e) { toast('❌ '+e.message, true); }
+
+  btn.textContent='Save to Database'; btn.disabled=false;
+}
+
+// ── Image handling ────────────────────────────────────────────────────────────
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      pImgs.push({filename:f.name, dataUrl:e.target.result, url:null, isNew:true});
+      renderImgPrev();
+      document.getElementById('upSt').textContent = `${pImgs.length} image(s) — will upload on save`;
+    };
+    reader.readAsDataURL(f);
+  });
+  document.getElementById('fFile').value = '';
+}
+
+function renderImgPrev() {
+  document.getElementById('upPrev').innerHTML = pImgs.map((img,i) => `
+    <div class="utw">
+      <img class="uth" src="${img.isNew ? img.dataUrl : (API+img.url)}"/>
+      <button class="udl" onclick="pImgs.splice(${i},1);renderImgPrev()">✕</button>
+    </div>`).join('');
+}
+
+function openLbx(url) { document.getElementById('lbxImg').src=url; document.getElementById('lbx').classList.add('open'); }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fname(p) { return String(p).replace(/\\/g,'/').split('/').pop() || p; }
+function esc(s) { const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+function toast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  setTimeout(()=>t.className='', 3500);
+}
+
+async function checkServer() {
+  const dot=document.getElementById('sdot'), txt=document.getElementById('stxt');
+  try {
+    const r = await fetch(API+'/api/entries', {signal:AbortSignal.timeout(1500)});
+    if (r.ok) { dot.className='sdot on'; txt.textContent='online · SQLite'; return true; }
+  } catch {}
+  dot.className='sdot off'; txt.textContent='server offline';
+  return false;
+}
+
+async function init() {
+  const ok = await checkServer();
+  await loadCats();
+  if (ok) loadEntries();
+  else document.getElementById('tbody').innerHTML='<tr class="erow"><td colspan="7">⚠️ Start server.py first, then refresh.</td></tr>';
+  setInterval(checkServer, 8000);
+}
+
+init();
+</script>
+</body>
+</html>
